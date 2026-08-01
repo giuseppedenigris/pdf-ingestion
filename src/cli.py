@@ -5,7 +5,9 @@ from docling.document_converter import DocumentConverter
 
 from src.conversion import build_converter
 from src.manifest import append_manifest_entry, read_successful_source_files
+from src.logging import configure_warnings
 from src.pipeline import process_pdf_default, process_pdf_md_only
+from src.progress import Spinner
 
 
 def parse_args() -> argparse.Namespace:
@@ -15,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--md-only", action="store_true")
+    parser.add_argument("--save-log", action="store_true")
     return parser.parse_args()
 
 
@@ -31,8 +34,9 @@ def process_single_pdf(
         process_pdf_default(converter, pdf_path, output_dir)
 
 
-def run(input_dir: Path, output_dir: Path, md_only: bool) -> None:
+def run(input_dir: Path, output_dir: Path, md_only: bool, save_log: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    configure_warnings(output_dir, save_log)
     already_processed = read_successful_source_files(output_dir)
     pending = [p for p in discover_pdfs(input_dir) if p.name not in already_processed]
 
@@ -43,16 +47,20 @@ def run(input_dir: Path, output_dir: Path, md_only: bool) -> None:
     # own try/except and manifest write), so switching to a process pool later
     # only requires swapping this loop for a map over process_single_pdf.
     for index, pdf_path in enumerate(pending, start=1):
-        print(f"[{index}/{len(pending)}] processing {pdf_path.name}")
+        size_mb = pdf_path.stat().st_size / 1_000_000
+        label = f"[{index}/{len(pending)}] {pdf_path.name} ({size_mb:.1f} MB)"
+        spinner = Spinner(label)
+        spinner.start()
         try:
             process_single_pdf(converter, pdf_path, output_dir, md_only)
         except Exception as exc:
-            print(f"  failed: {exc}")
+            spinner.stop(f"{label} failed after {spinner.elapsed:.1f}s: {exc}")
             append_manifest_entry(output_dir, pdf_path.name, "failed", str(exc))
         else:
+            spinner.stop(f"{label} done in {spinner.elapsed:.1f}s")
             append_manifest_entry(output_dir, pdf_path.name, "success")
 
 
 def main() -> None:
     args = parse_args()
-    run(args.input_dir, args.output_dir, args.md_only)
+    run(args.input_dir, args.output_dir, args.md_only, args.save_log)
