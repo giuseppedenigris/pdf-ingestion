@@ -2,9 +2,17 @@ from pathlib import Path
 
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.pipeline_options import (
+    OcrMode,
+    PdfPipelineOptions,
+    RapidOcrOptions,
+)
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc.document import DoclingDocument
+
+from src.text_quality import has_control_chars
+
+_ocr_converter: DocumentConverter | None = None
 
 
 def build_converter() -> DocumentConverter:
@@ -24,6 +32,34 @@ def build_converter() -> DocumentConverter:
     )
 
 
+def _get_ocr_converter() -> DocumentConverter:
+    # Some PDFs embed a font with no ToUnicode table (old Windows print drivers),
+    # so the programmatic text layer decodes to garbage control characters even
+    # though the page renders correctly. Forcing full-page OCR reads the
+    # rendered pixels instead, sidestepping the broken text layer. Built lazily
+    # and memoized: only the small minority of PDFs that actually need this
+    # retry should pay for loading the OCR model.
+    global _ocr_converter
+    if _ocr_converter is None:
+        pipeline_options = PdfPipelineOptions(
+            generate_picture_images=True,
+            # backend="torch": the default "onnxruntime" isn't installed in this project.
+            ocr_options=RapidOcrOptions(
+                mode=OcrMode.FULL_PAGE, backend="torch", lang=["english"]
+            ),
+        )
+        _ocr_converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    backend=PyPdfiumDocumentBackend, pipeline_options=pipeline_options
+                )
+            }
+        )
+    return _ocr_converter
+
+
 def convert_pdf(converter: DocumentConverter, pdf_path: Path) -> DoclingDocument:
-    result = converter.convert(pdf_path)
-    return result.document
+    doc = converter.convert(pdf_path).document
+    if has_control_chars(doc.export_to_markdown()):
+        doc = _get_ocr_converter().convert(pdf_path).document
+    return doc

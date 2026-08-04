@@ -4,6 +4,7 @@ from pathlib import Path
 from docling.document_converter import DocumentConverter
 
 from src.conversion import build_converter
+from src.integrity import IntegrityReport, verify_output
 from src.manifest import append_manifest_entry, read_successful_source_files
 from src.logging import configure_warnings
 from src.pipeline import process_pdf_default, process_pdf_md_only
@@ -14,11 +15,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Convert PDFs to Markdown/HTML/PNG/JSON using Docling."
     )
-    parser.add_argument("--input-dir", required=True, type=Path)
+    parser.add_argument("--input-dir", type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--md-only", action="store_true")
     parser.add_argument("--save-log", action="store_true")
-    return parser.parse_args()
+    parser.add_argument(
+        "--verify-output",
+        action="store_true",
+        help="Only check --output-dir for missing/orphaned files against _manifest.jsonl; no conversion runs.",
+    )
+    args = parser.parse_args()
+    if not args.verify_output and args.input_dir is None:
+        parser.error("--input-dir is required unless --verify-output is set")
+    return args
 
 
 def discover_pdfs(input_dir: Path) -> list[Path]:
@@ -61,6 +70,36 @@ def run(input_dir: Path, output_dir: Path, md_only: bool, save_log: bool) -> Non
             append_manifest_entry(output_dir, pdf_path.name, "success")
 
 
+def print_integrity_report(report: IntegrityReport) -> None:
+    if report.duplicate_successes:
+        print(f"Duplicate manifest entries ({len(report.duplicate_successes)}):")
+        for line in report.duplicate_successes:
+            print(f"  {line}")
+        print()
+
+    if report.missing_files:
+        print(f"Missing files ({len(report.missing_files)}):")
+        for line in report.missing_files:
+            print(f"  {line}")
+        print()
+
+    if report.orphan_files:
+        print(f"Orphan files ({len(report.orphan_files)}):")
+        for line in report.orphan_files:
+            print(f"  {line}")
+        print()
+
+    print("--- Summary ---")
+    print(f"Duplicate manifest entries: {len(report.duplicate_successes)}")
+    print(f"Missing files: {len(report.missing_files)}")
+    print(f"Orphan files: {len(report.orphan_files)}")
+    print("All clean." if report.is_clean else "Problems found.")
+
+
 def main() -> None:
     args = parse_args()
+    if args.verify_output:
+        report = verify_output(args.output_dir)
+        print_integrity_report(report)
+        raise SystemExit(0 if report.is_clean else 1)
     run(args.input_dir, args.output_dir, args.md_only, args.save_log)
