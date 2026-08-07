@@ -50,6 +50,8 @@ def build_picture_metadata(
         "caption_source": "native" if caption else "none",
         "embedded_labels": extract_embedded_labels(picture, doc),
         "retrieval_text": None,
+        "filtered_out": False,
+        "filtered_reason": None,
         "content_file": f"{picture_id}.png",
     }
 

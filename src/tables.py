@@ -35,6 +35,8 @@ def build_table_metadata(
         "caption": caption,
         "caption_source": "native" if caption else "none",
         "retrieval_text": None,
+        "filtered_out": False,
+        "filtered_reason": None,
         "content_file": f"{table_id}.html",
     }
 
