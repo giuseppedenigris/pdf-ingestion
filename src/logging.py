@@ -4,7 +4,7 @@ from pathlib import Path
 
 import transformers.utils.logging as transformers_logging
 
-WARNING_LOG_FILENAME = "pdf-ingestion.log"
+WARNING_LOG_FILENAME = "_pdf-ingestion.log"
 
 
 def configure_warnings(output_dir: Path, save_log: bool) -> None:
