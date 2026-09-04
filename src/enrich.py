@@ -101,6 +101,9 @@ def _caption_images(
         done_id = next((m for m in members if _judged(metas[m])), None)
         if done_id is None:
             representative = sorted(members)[0]
+            rep_meta = metas[representative]
+            if on_progress:
+                on_progress(f"captioning images ({resolved}/{total}) {rep_meta['width']}x{rep_meta['height']}")
             try:
                 result = captioning.assess_image(
                     captioner,
