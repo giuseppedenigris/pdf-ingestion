@@ -1,4 +1,11 @@
+import hashlib
+
 from docling_core.types.doc.document import DocItem
+
+
+def make_id(binary_hash: int, item_type: str, self_refs: list[str]) -> str:
+    payload = f"{binary_hash}:{item_type}:{','.join(sorted(self_refs))}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
 def page_numbers(item: DocItem) -> list[int]:

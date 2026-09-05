@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
@@ -10,9 +11,13 @@ from docling.datamodel.pipeline_options import (
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc.document import DoclingDocument
 
-from src.text_quality import has_control_chars
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 _ocr_converter: DocumentConverter | None = None
+
+
+def _has_control_chars(text: str) -> bool:
+    return bool(_CONTROL_CHAR_RE.search(text))
 
 
 def build_converter() -> DocumentConverter:
@@ -60,6 +65,6 @@ def _get_ocr_converter() -> DocumentConverter:
 
 def convert_pdf(converter: DocumentConverter, pdf_path: Path) -> DoclingDocument:
     doc = converter.convert(pdf_path).document
-    if has_control_chars(doc.export_to_markdown()):
+    if _has_control_chars(doc.export_to_markdown()):
         doc = _get_ocr_converter().convert(pdf_path).document
     return doc

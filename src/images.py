@@ -5,8 +5,7 @@ from typing import Any
 from docling_core.types.doc.document import DoclingDocument, DocItemLabel, PictureItem
 from PIL.Image import Image
 
-from src.ids import make_id
-from src.provenance import bounding_box, page_numbers
+from src.utils import bounding_box, make_id, page_numbers
 
 
 def build_picture_id_map(doc: DoclingDocument, binary_hash: int) -> dict[str, str]:

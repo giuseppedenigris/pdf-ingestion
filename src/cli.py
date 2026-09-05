@@ -3,7 +3,7 @@ from pathlib import Path
 
 from docling.document_converter import DocumentConverter
 
-from src import captioning, enrich
+from src import captioning
 from src.conversion import build_converter
 from src.integrity import IntegrityReport, verify_output
 from src.manifest import append_manifest_entry, read_successful_source_files
@@ -77,12 +77,12 @@ def run(
 
     converter = build_converter()
     captioner = None if no_caption else captioning.build_captioner(captioner_url, captioner_model)
-    state = enrich.CaptionRunState()
+    state = captioning.CaptionRunState()
 
     work_items = [
         (stem, pdf_path)
         for stem, pdf_path in work_items
-        if pdf_path is not None or enrich.needs_enrichment(output_dir, stem)
+        if pdf_path is not None or captioning.needs_enrichment(output_dir, stem)
     ]
 
     for index, (stem, pdf_path) in enumerate(work_items, start=1):
@@ -104,7 +104,7 @@ def run(
             spinner.start()
 
         try:
-            enrich.enrich_document(
+            captioning.enrich_document(
                 output_dir,
                 stem,
                 captioner,
