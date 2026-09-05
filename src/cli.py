@@ -82,7 +82,7 @@ def run(
     work_items = [
         (stem, pdf_path)
         for stem, pdf_path in work_items
-        if pdf_path is not None or captioning.needs_enrichment(output_dir, stem)
+        if pdf_path is not None or (not no_caption and captioning.needs_enrichment(output_dir, stem))
     ]
 
     for index, (stem, pdf_path) in enumerate(work_items, start=1):
