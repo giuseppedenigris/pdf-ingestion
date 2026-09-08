@@ -8,5 +8,8 @@ dependencies = [
     "docling>=2.116.0",
     "langchain-core>=1.5.3",
     "langchain-ollama>=1.1.0",
+    "protobuf>=7.36.1",
     "pydantic>=2.13.4",
+    "sentencepiece>=0.2.2",
+    "transformers>=5.8.1",
 ]

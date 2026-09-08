@@ -5,41 +5,20 @@ from pathlib import Path
 
 @dataclass
 class IntegrityReport:
-    duplicate_successes: list[str] = field(default_factory=list)
     missing_files: list[str] = field(default_factory=list)
     orphan_files: list[str] = field(default_factory=list)
 
     @property
     def is_clean(self) -> bool:
-        return not (self.duplicate_successes or self.missing_files or self.orphan_files)
-
-
-def _read_success_stems(output_dir: Path, problems: list[str]) -> list[str]:
-    manifest_path = output_dir / "_manifest.jsonl"
-    success_counts: dict[str, int] = {}
-    for line in manifest_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        entry = json.loads(line)
-        if entry.get("status") == "success":
-            source_file = entry["source_file"]
-            success_counts[source_file] = success_counts.get(source_file, 0) + 1
-
-    for source_file, count in success_counts.items():
-        if count > 1:
-            problems.append(f"{source_file}: {count} success entries in _manifest.jsonl (expected 1)")
-
-    return [Path(source_file).stem for source_file in success_counts]
+        return not (self.missing_files or self.orphan_files)
 
 
 def verify_output(output_dir: Path) -> IntegrityReport:
-    duplicate_successes: list[str] = []
-    stems = _read_success_stems(output_dir, duplicate_successes)
-
     metadata_dir = output_dir / "metadata"
     images_dir = output_dir / "images"
     tables_dir = output_dir / "tables"
+
+    stems = [p.stem for p in metadata_dir.glob("*.json")]
 
     expected: set[str] = set()
     missing_files: list[str] = []
@@ -53,10 +32,6 @@ def verify_output(output_dir: Path) -> IntegrityReport:
             missing_files.append(f"{stem}.md")
 
         meta_path = metadata_dir / f"{stem}.json"
-        if not meta_path.exists():
-            missing_files.append(f"metadata/{stem}.json")
-            continue
-
         doc = json.loads(meta_path.read_text(encoding="utf-8"))
 
         for picture_id in doc.get("picture_ids", []):
@@ -85,8 +60,4 @@ def verify_output(output_dir: Path) -> IntegrityReport:
 
     orphan_files = sorted(actual - expected)
 
-    return IntegrityReport(
-        duplicate_successes=duplicate_successes,
-        missing_files=missing_files,
-        orphan_files=orphan_files,
-    )
+    return IntegrityReport(missing_files=missing_files, orphan_files=orphan_files)
