@@ -40,7 +40,7 @@ def _get_model() -> tuple[AutoModel, AutoProcessor]:
     # Lazy singleton: only the first call pays for loading the checkpoint.
     global _model, _processor
     if _model is None:
-        _model = AutoModel.from_pretrained(_MODEL_NAME)
+        _model = AutoModel.from_pretrained(_MODEL_NAME, device_map="auto")
         _model.eval()
         _processor = AutoProcessor.from_pretrained(_MODEL_NAME)
     return _model, _processor
@@ -56,7 +56,7 @@ class VisualFilterResult:
 def classify(png_bytes: bytes) -> VisualFilterResult:
     model, processor = _get_model()
     image = Image.open(BytesIO(png_bytes)).convert("RGB")
-    inputs = processor(text=_PROMPTS, images=image, padding="max_length", return_tensors="pt")
+    inputs = processor(text=_PROMPTS, images=image, padding="max_length", return_tensors="pt").to(model.device)
     with torch.no_grad():
         logits = model(**inputs).logits_per_image
     # SigLIP's own sigmoid/BCE score is an independent per-label match probability
