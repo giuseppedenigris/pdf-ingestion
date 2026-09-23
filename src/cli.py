@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def discover_pdfs(input_dir: Path) -> list[Path]:
-    return sorted(input_dir.glob("*.pdf"))
+    return sorted(p for p in input_dir.iterdir() if p.is_file() and p.suffix.lower() == ".pdf")
 
 
 def process_single_pdf(
